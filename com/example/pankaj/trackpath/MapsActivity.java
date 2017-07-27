@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.support.v4.app.ActivityCompat;
@@ -16,6 +17,7 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Chronometer;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -44,46 +46,67 @@ import static com.example.pankaj.trackpath.LocationService.mCurrentLocation;
 import static com.example.pankaj.trackpath.R.id.map;
 import static com.example.pankaj.trackpath.R.id.mylocation;
 
-public class MapsActivity extends FragmentActivity implements OnMapReadyCallback,  GoogleMap.OnMarkerDragListener {
+public class MapsActivity extends FragmentActivity implements OnMapReadyCallback, GoogleMap.OnMarkerDragListener {
+//        GoogleMap.OnMyLocationButtonClickListener {
+//        ActivityCompat.OnRequestPermissionsResultCallback {
     private boolean istracking = false;
     private GoogleMap mapFragment;
-    private String startMarkerTime ="";
+    private String startMarkerTime = "";
     private FloatingActionButton mylocationFloatButton, startstopFloatButton, clearFloatButton;
     private Coordinates coordObject;
-    private Type type = new TypeToken<ArrayList<LatLng>>() {}.getType();
+    private Type type = new TypeToken<ArrayList<LatLng>>() {
+    }.getType();
     private AlertDialog.Builder saveDBAlert;
     private Gson convertLatLngArray = new Gson();
     private DrawerLayout drawer;
     private ListView navList;
     private DatabaseHandler populatedrawer;
     private ListviewAdapter adapter;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1;
+    private boolean mPermissionDenied = false;
+    private Chronometer trackingtime;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
         saveDBAlert = new AlertDialog.Builder(this);
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager().findFragmentById(map);
         mapFragment.getMapAsync(this);
-        mapFragment.setRetainInstance(true);
+        if (savedInstanceState == null) {
+            // First incarnation of this activity.
+            mapFragment.setRetainInstance(true);
+        }
         populatedrawer = new DatabaseHandler(this);
-        coordObject = new Coordinates("Time","");
+        coordObject = new Coordinates("Time", "");
         adapter = new ListviewAdapter(this, populatedrawer.getAllCoordinates());
-        drawer = (DrawerLayout)findViewById(R.id.drawer_layout);
+        drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         navList = (ListView) findViewById(R.id.drawer);
         navList.setAdapter(adapter);
         drawer.closeDrawer(navList);
-        }
+    }
 
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
-        }
         mapFragment = googleMap;
         mapFragment.getUiSettings().setZoomControlsEnabled(true);
+        if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+
+        trackingtime = (Chronometer) findViewById(R.id.trackingTime);
+        trackingtime.setFormat("Time (%s)");
         mapFragment.setMyLocationEnabled(true);
         mapFragment.setOnMarkerDragListener(this);
+//        mapFragment.setOnMyLocationButtonClickListener(this);
         mylocationFloatButton = (FloatingActionButton) findViewById(mylocation);
         mylocationFloatButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -91,6 +114,9 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 Snackbar.make(view, "Marking your location", Snackbar.LENGTH_SHORT).show();
                 startService(new Intent(MapsActivity.this, LocationService.class));
                 getMyLocation();
+//                if(!getMyLocation()){
+//                    stopService(new Intent(MapsActivity.this, LocationService.class));
+//                };
             }
         });
 
@@ -105,7 +131,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 saveDBAlert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int i) {
                         if(coordObject!=null) {
-//                            coordObject.setRawdata(convertLatLngArray.toJson(listCoord));
+//                          coordObject.setRawdata(convertLatLngArray.toJson(listCoord));
                             DatabaseHandler db = new DatabaseHandler(view.getContext());
                             db.addEntry(coordObject);
                             navList.setAdapter(adapter = new ListviewAdapter(view.getContext(), populatedrawer.getAllCoordinates()));
@@ -141,19 +167,25 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                     startstopFloatButton.setImageDrawable(getResources().getDrawable(android.R.drawable.ic_media_play));
                     stopService(new Intent(MapsActivity.this, LocationService.class));
                     clearFloatButton.setVisibility(View.VISIBLE);
+                    trackingtime.stop();
 //                    startstopFloatButton.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(android.R.color.holo_green_light)));
 
                 }else{
                     clearFloatButton.setVisibility(View.GONE);
                     startService(new Intent(MapsActivity.this, LocationService.class));
-                    Snackbar.make(view, "Tracking Started", Snackbar.LENGTH_SHORT).show();
+
                     if(getMyLocation()){
+                        Snackbar.make(view, "Tracking Started", Snackbar.LENGTH_SHORT).show();
+                        trackingtime.setFormat("Time (%s)");
+                        trackingtime.setBase(SystemClock.elapsedRealtime());
+                        trackingtime.start();
                         istracking = true;
                         startstopFloatButton.setImageDrawable(getResources().getDrawable(android.R.drawable.ic_media_pause));
 //                    startstopFloatButton.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(android.R.color.holo_red_light)));
                     }
-
-
+//                    else{
+//                        stopService(new Intent(MapsActivity.this, LocationService.class));
+//                    }
                 }
 
             }
@@ -188,6 +220,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     }
     protected boolean getMyLocation() {
         if (mCurrentLocation != null) {
+//            Location l = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
             LatLng latlong = new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude());
             long atTime = mCurrentLocation.getTime();
             startMarkerTime = DateFormat.getTimeInstance().format(new Date(atTime));
@@ -220,6 +253,11 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         listCoord.add(new LatLng(marker.getPosition().latitude, marker.getPosition().longitude));
         Toast.makeText(this, "Marker Droped @ Lat:" +marker.getPosition().latitude+" Long:"+ marker.getPosition().longitude, Toast.LENGTH_LONG).show();
     }
+
+//    @Override
+//    public boolean onMyLocationButtonClick() {
+//        return false;
+//    }
 
     public class ListviewAdapter extends ArrayAdapter<Coordinates> {
         Context context;
@@ -280,11 +318,43 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 });
 
             }
-
-
             return convertView;
         }
 
 
     }
+
+//    private void enableMyLocation() {
+//        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION)
+//                != PackageManager.PERMISSION_GRANTED) {
+//            // Permission to access the location is missing.
+//            PermissionUtils.requestPermission(this, LOCATION_PERMISSION_REQUEST_CODE,
+//                    android.Manifest.permission.ACCESS_FINE_LOCATION, true);
+//        } else if (mapFragment != null) {
+//            // Access to the location has been granted to the app.
+//            mapFragment.setMyLocationEnabled(true);
+//        }
+//    }
+//
+//    @Override
+//    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+//                                           @NonNull int[] grantResults) {
+//        if (requestCode != LOCATION_PERMISSION_REQUEST_CODE) {
+//            return;
+//        }
+//
+//        if (PermissionUtils.isPermissionGranted(permissions, grantResults,
+//                android.Manifest.permission.ACCESS_FINE_LOCATION)) {
+//            // Enable the my location layer if the permission has been granted.
+////            enableMyLocation();
+//        } else {
+//            // Display the missing permission error dialog when the fragments resume.
+//            mPermissionDenied = true;
+//        }
+//    }
+//
+//    private void showMissingPermissionError() {
+//        PermissionUtils.PermissionDeniedDialog
+//                .newInstance(true).show(getSupportFragmentManager(), "dialog");
+//    }
 }

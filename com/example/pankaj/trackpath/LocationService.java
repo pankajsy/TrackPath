@@ -39,12 +39,52 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
     private Intent mIntentService;
     private PendingIntent mPendingIntent;
     public static ArrayList<LatLng> listCoord;
+    public static Boolean isConnected;
+
 
     @Override
     public void onCreate() {
         super.onCreate();
         mIntentService = new Intent(this, LocationUpdates.class);
-
+//        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder()
+//                .addLocationRequest(mLocationRequest);
+//
+//        SettingsClient client = LocationServices.getSettingsClient(this);
+//        Task<LocationSettingsResponse> task = client.checkLocationSettings(builder.build());
+//        task.addOnSuccessListener(this, new OnSuccessListener<LocationSettingsResponse>() {
+//            @Override
+//            public void onSuccess(LocationSettingsResponse locationSettingsResponse) {
+//                // All location settings are satisfied. The client can initialize
+//                // location requests here.
+//                // ...
+//            }
+//        });
+//
+//        task.addOnFailureListener(this, new OnFailureListener() {
+//            @Override
+//            public void onFailure(@NonNull Exception e) {
+//                int statusCode = ((ApiException) e).getStatusCode();
+//                switch (statusCode) {
+//                    case CommonStatusCodes.RESOLUTION_REQUIRED:
+//                        // Location settings are not satisfied, but this can be fixed
+//                        // by showing the user a dialog.
+//                        try {
+//                            // Show the dialog by calling startResolutionForResult(),
+//                            // and check the result in onActivityResult().
+//                            ResolvableApiException resolvable = (ResolvableApiException) e;
+//                            resolvable.startResolutionForResult(MainActivity.this,
+//                                    REQUEST_CHECK_SETTINGS);
+//                        } catch (IntentSender.SendIntentException sendEx) {
+//                            // Ignore the error.
+//                        }
+//                        break;
+//                    case LocationSettingsStatusCodes.SETTINGS_CHANGE_UNAVAILABLE:
+//                        // Location settings are not satisfied. However, we have no way
+//                        // to fix the settings so we won't show the dialog.
+//                        break;
+//                }
+//            }
+//        });
         listCoord = new ArrayList<>();
 //        mPendingIntent = PendingIntent.getService(this, 1, mIntentService, PendingIntent.FLAG_UPDATE_CURRENT);
         buildGoogleApiClient();
@@ -93,28 +133,17 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
     protected void startLocationUpdates() {
         if (ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            return;
+            Toast.makeText(this, "Set Location Permissions and Restart the App", Toast.LENGTH_LONG).show();
+//            return;
         }
         LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
-//
 //        LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, mPendingIntent);
         mCurrentLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-//        if (mCurrentLocation != null) {
-//////            listCoord.add(new LatLng(mCurrentLocation.getLatitude(), mCurrentLocation.getLongitude()));
-//////            Log.("LL - > " + listCoord);
-//            Toast.makeText(this, "Lat:" +mCurrentLocation.getLatitude()+" Lon: "+ mCurrentLocation.getLatitude(), Toast.LENGTH_LONG).show();
-//////            mLatitudeTextView.setText(String.valueOf(mCurrentLocation.getLatitude()));
-//////            mLongitudeTextView.setText(String.valueOf(mCurrentLocation.getLongitude()));
-//        } else {
-//            Toast.makeText(this, "Location not Detected", Toast.LENGTH_SHORT).show();
-//        }
     }
 
     protected void stopLocationUpdates() {
         LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-
         listCoord = new ArrayList<>();
-        ;
 //        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, mPendingIntent);
 
     }
@@ -153,13 +182,4 @@ public class LocationService extends Service implements GoogleApiClient.Connecti
 
 
 
-//    private boolean isGooglePlayServicesAvailable() {
-//        int status = GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
-//        if (ConnectionResult.SUCCESS == status) {
-//            return true;
-//        } else {
-//            GooglePlayServicesUtil.getErrorDialog(status, this, 0).show();
-//            return false;
-//        }
-//    }
 }
