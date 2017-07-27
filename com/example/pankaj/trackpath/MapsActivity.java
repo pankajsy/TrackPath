@@ -41,6 +41,7 @@ import java.text.DateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 
+import static com.example.pankaj.trackpath.LocationService.isConnected;
 import static com.example.pankaj.trackpath.LocationService.listCoord;
 import static com.example.pankaj.trackpath.LocationService.mCurrentLocation;
 import static com.example.pankaj.trackpath.R.id.map;
@@ -78,7 +79,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             mapFragment.setRetainInstance(true);
         }
         populatedrawer = new DatabaseHandler(this);
-        coordObject = new Coordinates("Time", "");
+        coordObject = new Coordinates();
         adapter = new ListviewAdapter(this, populatedrawer.getAllCoordinates());
         drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         navList = (ListView) findViewById(R.id.drawer);
@@ -111,12 +112,14 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         mylocationFloatButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Snackbar.make(view, "Marking your location", Snackbar.LENGTH_SHORT).show();
+
                 startService(new Intent(MapsActivity.this, LocationService.class));
-                getMyLocation();
-//                if(!getMyLocation()){
-//                    stopService(new Intent(MapsActivity.this, LocationService.class));
-//                };
+                if(isConnected){
+                    Snackbar.make(view, "Marking your location", Snackbar.LENGTH_SHORT).show();
+                    getMyLocation();
+                }else{
+                    Snackbar.make(view, "Check Your Location Services, Try again", Snackbar.LENGTH_SHORT).show();
+                }
             }
         });
 
@@ -128,22 +131,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
                 mapFragment.clear();
                 saveDBAlert.setTitle("Do you want to save the track?");
                 saveDBAlert.setIcon(android.R.drawable.ic_dialog_alert);
-                saveDBAlert.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                saveDBAlert.setCancelable(false);
+                saveDBAlert.setPositiveButton("YES", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int i) {
                         if(coordObject!=null) {
 //                          coordObject.setRawdata(convertLatLngArray.toJson(listCoord));
                             DatabaseHandler db = new DatabaseHandler(view.getContext());
                             db.addEntry(coordObject);
                             navList.setAdapter(adapter = new ListviewAdapter(view.getContext(), populatedrawer.getAllCoordinates()));
-                            Snackbar.make(view, "Saved", Snackbar.LENGTH_SHORT).show();
+                            Snackbar.make(view, "Saved and Clearing Map, Set your Location to Start Over!", Snackbar.LENGTH_SHORT).show();
                             stopService(new Intent(MapsActivity.this, LocationService.class));
 //                            clearFloatButton.setVisibility(View.VISIBLE);
                         }else{
                             Snackbar.make(view, "Something went wrong, Clear Map and try again", Snackbar.LENGTH_LONG).show();
                         }
-                        Snackbar.make(view, "Clearing Map, Set your Location to Start Over!", Snackbar.LENGTH_LONG).show();
                     } });
-                saveDBAlert.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                saveDBAlert.setNegativeButton("NO", new DialogInterface.OnClickListener() {
                     public void onClick(DialogInterface dialog, int i) {
                         stopService(new Intent(MapsActivity.this, LocationService.class));
                         Snackbar.make(view, "Clearing Map, Set your Location to Start Over!", Snackbar.LENGTH_LONG).show();
@@ -159,17 +162,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             @Override
             public void onClick(final View view) {
                 if(istracking){
-                    mapFragment.addMarker(new MarkerOptions().position(listCoord.get(listCoord.size() - 1)).title("End").flat(true));
-                    drawMarker();
-                    coordObject.setRawdata(convertLatLngArray.toJson(listCoord));
-                    Snackbar.make(view, "Tracking Stopped", Snackbar.LENGTH_SHORT).show();
+                    if(listCoord!=null || listCoord.size()>0) {
+                        mapFragment.addMarker(new MarkerOptions().position(listCoord.get(listCoord.size() - 1)).title("End").flat(true));
+                        drawMarker();
+                        coordObject.setRawdata(convertLatLngArray.toJson(listCoord));
+                        Snackbar.make(view, "Tracking Stopped", Snackbar.LENGTH_SHORT).show();
+                        //startstopFloatButton.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(android.R.color.holo_green_light)));
+                    }else {
+                        Snackbar.make(view, "Something went wrong, Clear Map and Try again!", Snackbar.LENGTH_SHORT).show();
+                    }
                     istracking = false;
                     startstopFloatButton.setImageDrawable(getResources().getDrawable(android.R.drawable.ic_media_play));
                     stopService(new Intent(MapsActivity.this, LocationService.class));
                     clearFloatButton.setVisibility(View.VISIBLE);
                     trackingtime.stop();
-//                    startstopFloatButton.setBackgroundTintList(ColorStateList.valueOf(getResources().getColor(android.R.color.holo_green_light)));
-
                 }else{
                     clearFloatButton.setVisibility(View.GONE);
                     startService(new Intent(MapsActivity.this, LocationService.class));
